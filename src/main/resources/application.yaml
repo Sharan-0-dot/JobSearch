@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: job-search-agent
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+langchain4j:
+  ollama:
+    chat-model:
+      base-url: http://localhost:11434
+      model-name: llama3
+      temperature: 0.3
+      timeout: 120s
+
+    embedding-model:
+      base-url: http://localhost:11434
+      model-name: nomic-embed-text
+      timeout: 60s
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+
+jsearch:
+  api:
+    key: ${JSEARCH_API_KEY}
+    host: jsearch.p.rapidapi.com
+    base-url: https://jsearch.p.rapidapi.com
+
+agent:
+  embedding:
+    dimension: 768
+
+  search:
+    top-k: 5
+
+  memory:
+    max-messages: 20
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+kind: Application
