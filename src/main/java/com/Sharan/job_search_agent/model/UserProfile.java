@@ -45,7 +45,7 @@ public class UserProfile {
     @Column(name = "experience_years")
     private Integer experienceYears;
 
-    @Column(name = "current_role")
+    @Column(name = "user_current_role")
     private String currentRole;
 
     @Column(name = "preferred_roles", columnDefinition = "TEXT[]")
