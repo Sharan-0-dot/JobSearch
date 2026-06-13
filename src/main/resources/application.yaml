@@ -2,6 +2,9 @@ spring:
   application:
     name: job-search-agent
 
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE}
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -54,6 +57,13 @@ agent:
 
   memory:
     max-messages: 20
+
+  ranking:
+    skill-overlap-weight: 0.35
+    location-weight: 0.20
+    experience-weight: 0.15
+    tech-stack-weight: 0.20
+    salary-weight: 0.10
 
 management:
   endpoints:
