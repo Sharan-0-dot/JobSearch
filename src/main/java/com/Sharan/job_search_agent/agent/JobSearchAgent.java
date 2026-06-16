@@ -1,9 +1,9 @@
 package com.Sharan.job_search_agent.agent;
 
 import dev.langchain4j.service.MemoryId;
+import dev.langchain4j.service.Result;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
-
 
 public interface JobSearchAgent {
 
@@ -31,10 +31,8 @@ public interface JobSearchAgent {
             - List jobs with title, company, location, and match score
             - End with 1-2 personalized coaching tips based on the user's profile
             """)
-
-    String chat(
+    Result<String> chat(
             @MemoryId String userId,
-
             @UserMessage String userMessage
     );
 }

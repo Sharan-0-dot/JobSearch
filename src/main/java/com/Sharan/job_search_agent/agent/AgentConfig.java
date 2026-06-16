@@ -38,7 +38,6 @@ public class AgentConfig {
                         .maxMessages(maxMessages)
                         .chatMemoryStore(memoryStore)
                         .build())
-
                 .build();
     }
 }

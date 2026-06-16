@@ -38,7 +38,7 @@ public class JSearchTool {
                     jSearchRetry,
                     CircuitBreaker.decorateSupplier(
                             jSearchCircuitBreaker,
-                            () -> jSearchApiClient.searchJobs(query, location, jobType, 1)
+                            () -> jSearchApiClient.searchJobs(query, location, jobType, 2)
                     )
             );
 

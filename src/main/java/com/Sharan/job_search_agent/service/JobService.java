@@ -2,6 +2,7 @@ package com.Sharan.job_search_agent.service;
 
 import com.Sharan.job_search_agent.model.JobListing;
 import com.Sharan.job_search_agent.repository.JobListingRepository;
+import com.Sharan.job_search_agent.validation.URLValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class JobService {
 
     private final JobListingRepository jobListingRepository;
     private final EmbeddingService embeddingService;
+    private final URLValidator urlValidator;
 
     @Transactional
     public JobListing saveIfNotDuplicate(JobListing job) {
@@ -40,7 +42,6 @@ public class JobService {
         return saved;
     }
 
-
     @Transactional
     public List<JobListing> saveAllIfNotDuplicate(List<JobListing> jobs) {
         List<JobListing> saved = new ArrayList<>();
@@ -53,6 +54,31 @@ public class JobService {
     }
 
     public JobListing mapFromJSearchResponse(Map<String, Object> raw) {
+
+        String rawApplyLink = getString(raw, "job_apply_link");
+
+
+        URLValidator.UrlValidationResult urlResult = urlValidator.validate(rawApplyLink);
+
+        String finalApplyLink;
+        String redirectedLink = null;
+        boolean isLinkValid;
+
+        if (urlResult.isValid()) {
+            finalApplyLink = urlResult.finalUrl();
+            isLinkValid = true;
+
+            if (rawApplyLink != null && !rawApplyLink.equals(finalApplyLink)) {
+                redirectedLink = finalApplyLink;
+                log.debug("Apply link redirected: {} → {}", rawApplyLink, finalApplyLink);
+            }
+        } else {
+            finalApplyLink = rawApplyLink;
+            isLinkValid = false;
+            log.warn("Invalid apply link for job '{}': {}",
+                    getString(raw, "job_title"), urlResult.reason());
+        }
+
         return JobListing.builder()
                 .externalId(getString(raw, "job_id"))
                 .title(getString(raw, "job_title"))
@@ -64,7 +90,9 @@ public class JobService {
                         : "Entry")
                 .remoteStatus(Boolean.TRUE.equals(raw.get("job_is_remote")) ? "Fully Remote" : "On-site")
                 .description(getString(raw, "job_description"))
-                .applyLink(getString(raw, "job_apply_link"))
+                .applyLink(finalApplyLink)
+                .isApplyLinkValid(isLinkValid)
+                .redirectedApplyLink(redirectedLink)
                 .source(getString(raw, "job_publisher"))
                 .companyLogoUrl(getString(raw, "employer_logo"))
                 .skills(extractSkillsArray(raw))
@@ -74,8 +102,8 @@ public class JobService {
 
     public String computeDedupHash(String title, String company, String location) {
         String raw = String.join("|",
-                title   != null ? title.toLowerCase().trim()   : "",
-                company != null ? company.toLowerCase().trim() : "",
+                title    != null ? title.toLowerCase().trim()    : "",
+                company  != null ? company.toLowerCase().trim()  : "",
                 location != null ? location.toLowerCase().trim() : "");
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");

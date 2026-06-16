@@ -14,7 +14,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
     properties:
       hibernate:
         format_sql: true
@@ -29,14 +28,14 @@ langchain4j:
   ollama:
     chat-model:
       base-url: http://localhost:11434
-      model-name: llama3
+      model-name: llama3.1:8b
       temperature: 0.3
-      timeout: 120s
+      timeout: 300s
 
     embedding-model:
       base-url: http://localhost:11434
       model-name: nomic-embed-text
-      timeout: 60s
+      timeout: 120s
 
 gemini:
   api:
