@@ -28,7 +28,7 @@ langchain4j:
   ollama:
     chat-model:
       base-url: http://localhost:11434
-      model-name: llama3.1:8b
+      model-name: qwen2.5-coder:3b
       temperature: 0.3
       timeout: 300s
 
