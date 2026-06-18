@@ -3,6 +3,7 @@ package com.Sharan.job_search_agent.tools;
 import com.Sharan.job_search_agent.model.UserProfile;
 import com.Sharan.job_search_agent.repository.UserProfileRepository;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.agent.tool.P;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,9 +17,23 @@ public class UserProfileTool {
     private final UserProfileRepository userProfileRepository;
 
 
-    @Tool("Fetch the user's profile including skills, experience, preferred locations, " +
-            "and resume summary. Always call this before personalizing job results.")
-    public String getUserProfile(String userId) {
+    @Tool("""
+    Retrieve the user's saved profile with skills, experience, and preferences.
+    
+    Call this tool:
+    - BEFORE ranking or personalizing jobs
+    - When user asks about their profile
+    - Before giving career advice
+    
+    Returns:
+    - User skills and experience level
+    - Preferred locations
+    - Current role and background
+    - Resume information
+    
+    Use the returned profile data to personalize job recommendations.
+    """)
+    public String getUserProfile(@P("The user's unique ID") String userId) {
         log.info("UserProfileTool invoked | userId: {}", userId);
 
         return userProfileRepository.findByUserId(userId)

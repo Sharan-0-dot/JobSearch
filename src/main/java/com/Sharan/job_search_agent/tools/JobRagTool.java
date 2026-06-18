@@ -9,6 +9,7 @@ import com.Sharan.job_search_agent.repository.UserProfileRepository;
 import com.Sharan.job_search_agent.service.EmbeddingService;
 import com.Sharan.job_search_agent.service.RankingService;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.agent.tool.P;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,11 +31,29 @@ public class JobRagTool {
     @Value("${agent.search.top-k:5}")
     private int topK;
 
-
-    @Tool("Search cached jobs using semantic similarity against the user's resume. " +
-            "Use this for personalized job matching and ranking. " +
-            "Requires userId to fetch user profile and resume embedding.")
-    public String findMatchingJobs(String userId, String query) {
+    @Tool("""
+    Search and rank previously cached/stored jobs in the database.
+    
+    Use ONLY when user asks for:
+    - "Best matching jobs for me"
+    - "Personalized matches"
+    - "Jobs matching my skills"
+    - "Rank jobs for my profile"
+    
+    This tool does NOT fetch new jobs - it searches the local database.
+    Always call this AFTER searchLiveJobs to get cached results.
+    
+    Parameters:
+    - userId: The user's ID
+    - query: Natural language search query
+    
+    Return: Ranked list of jobs from the database that match the query.
+    
+    IMPORTANT: Call getUserProfile(userId) BEFORE calling this for personalized ranking.
+    """)
+    public String findMatchingJobs(
+            @P("The user's unique ID") String userId,
+            @P("Natural language search query for jobs (e.g., backend developer, data scientist)") String query) {
         log.info("JobRagTool invoked | userId: {} | query: {}", userId, query);
 
         try {

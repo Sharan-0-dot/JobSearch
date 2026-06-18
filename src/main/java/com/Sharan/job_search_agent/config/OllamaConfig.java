@@ -24,7 +24,7 @@ public class OllamaConfig {
         return OllamaChatModel.builder()
                 .baseUrl(ollamaBaseUrl)
                 .modelName(chatModelName)
-                .temperature(0.3)
+                .temperature(0.7)
                 .timeout(Duration.ofSeconds(120))
                 .build();
     }

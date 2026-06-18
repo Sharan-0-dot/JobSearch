@@ -1,5 +1,6 @@
 package com.Sharan.job_search_agent.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -62,7 +63,8 @@ public class UserProfile {
     @Column(name = "resume_text", columnDefinition = "TEXT")
     private String resumeText;
 
-    @Column(name = "resume_embedding", columnDefinition = "vector(768)")
+    @JsonIgnore
+    @Transient
     private float[] resumeEmbedding;
 
     @Column(name = "salary_min", precision = 15, scale = 2)

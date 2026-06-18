@@ -35,7 +35,6 @@ public class ProfileController {
         ));
     }
 
-    // GET /api/profile/{userId}
     @GetMapping("/{userId}")
     public ResponseEntity<?> getProfile(@PathVariable String userId) {
 

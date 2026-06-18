@@ -13,7 +13,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +35,7 @@ public class AgentController {
             TokenUsageTracker tokenUsageTracker,
             Counter agentQueryCounter,
             InputValidationService inputValidationService) {
+
         this.jobSearchAgent = jobSearchAgent;
         this.executionTraceService = executionTraceService;
         this.chatMemoryStore = chatMemoryStore;
@@ -46,6 +46,7 @@ public class AgentController {
 
     @PostMapping("/query")
     public ResponseEntity<?> query(@RequestBody Map<String, String> request) {
+
         String userId = request.get("userId");
         String userMessage = request.get("query");
 
@@ -53,6 +54,7 @@ public class AgentController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "userId is required"));
         }
+
         if (userMessage == null || userMessage.isBlank()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "query is required"));
@@ -62,10 +64,9 @@ public class AgentController {
                 inputValidationService.validate(userMessage);
 
         if (!validation.isValid()) {
-            log.warn("Rejected query from user {} — reason: {}",
-                    userId, validation.rejectionReason());
-            return ResponseEntity.badRequest()
-                    .body(Map.of(
+            log.warn("Rejected query from user {}. Reason: {}", userId, validation.rejectionReason());
+
+            return ResponseEntity.badRequest().body(Map.of(
                             "error", "Invalid input",
                             "reason", validation.rejectionReason()
                     ));
@@ -73,7 +74,7 @@ public class AgentController {
 
         userMessage = validation.sanitizedInput();
 
-        log.info("Agent query | userId: {} | query: {}", userId, userMessage);
+        log.info("Agent query | userId={} | query={}", userId, userMessage);
 
         agentQueryCounter.increment();
 
@@ -81,19 +82,60 @@ public class AgentController {
 
         try {
 
-            Result<String> result = jobSearchAgent.chat(userId, userMessage);
+            Result<String> result =
+                    jobSearchAgent.chat(userId, userMessage);
 
             String response = result.content();
 
-            tokenUsageTracker.record(result.tokenUsage());
+            if (result.tokenUsage() != null) {
+                tokenUsageTracker.record(result.tokenUsage());
+            }
 
-            long executionTime = System.currentTimeMillis() - startTime;
-            log.info("Agent responded in {}ms for user: {}", executionTime, userId);
+            List<String> toolsUsed = result.toolExecutions()
+                    .stream()
+                    .map(toolExecution -> toolExecution.request().name())
+                    .distinct()
+                    .toList();
 
-            List<String> toolsUsed = detectToolsUsed(response);
+            boolean usedJobTool =
+                    toolsUsed.contains("searchLiveJobs")
+                            || toolsUsed.contains("findMatchingJobs");
+
+            if (looksLikeJobSearchQuery(userMessage) && !usedJobTool) {
+
+                log.warn(
+                        "Possible hallucination detected. No job tool executed. userId={} query={}",
+                        userId,
+                        userMessage
+                );
+
+                return ResponseEntity.ok(Map.of(
+                        "userId", userId,
+                        "query", userMessage,
+                        "response",
+                        "I couldn't verify any real job listings for this request. Please provide a role, location, or job type and try again.",
+                        "toolsUsed", toolsUsed,
+                        "warning", "No job search tool was executed."
+                ));
+            }
+
+            long executionTime =
+                    System.currentTimeMillis() - startTime;
+
+            log.info(
+                    "Agent responded in {} ms | userId={} | tools={}",
+                    executionTime,
+                    userId,
+                    toolsUsed
+            );
 
             executionTraceService.saveTrace(
-                    userId, userMessage, response, toolsUsed, executionTime);
+                    userId,
+                    userMessage,
+                    response,
+                    toolsUsed,
+                    executionTime
+            );
 
             return ResponseEntity.ok(Map.of(
                     "userId", userId,
@@ -104,8 +146,15 @@ public class AgentController {
             ));
 
         } catch (Exception e) {
-            long executionTime = System.currentTimeMillis() - startTime;
-            log.error("Agent error for user {}: {}", userId, e.getMessage());
+
+            long executionTime =
+                    System.currentTimeMillis() - startTime;
+
+            log.error(
+                    "Agent error for user {}",
+                    userId,
+                    e
+            );
 
             return ResponseEntity.internalServerError()
                     .body(Map.of(
@@ -118,7 +167,9 @@ public class AgentController {
 
     @DeleteMapping("/memory/{userId}")
     public ResponseEntity<?> clearMemory(@PathVariable String userId) {
+
         chatMemoryStore.deleteMessages(userId);
+
         return ResponseEntity.ok(Map.of(
                 "message", "Memory cleared for user: " + userId
         ));
@@ -130,23 +181,31 @@ public class AgentController {
             @PageableDefault(size = 20) Pageable pageable) {
 
         return ResponseEntity.ok(
-                executionTraceService.getTracesByUser(userId, pageable));
+                executionTraceService.getTracesByUser(userId, pageable)
+        );
     }
 
-    private List<String> detectToolsUsed(String response) {
-        List<String> tools = new ArrayList<>();
-        if (response == null) return tools;
+    private boolean looksLikeJobSearchQuery(String query) {
 
-        String lower = response.toLowerCase();
-        if (lower.contains("live") || lower.contains("jsearch") || lower.contains("fetched"))
-            tools.add("JSearchTool");
-        if (lower.contains("match score") || lower.contains("semantic") || lower.contains("cached"))
-            tools.add("JobRagTool");
-        if (lower.contains("profile") || lower.contains("your skills"))
-            tools.add("UserProfileTool");
-        if (lower.contains("extracted") && lower.contains("skill"))
-            tools.add("SkillExtractorTool");
+        String q = query.toLowerCase();
 
-        return tools;
+        return q.contains("job")
+                || q.contains("jobs")
+                || q.contains("intern")
+                || q.contains("internship")
+                || q.contains("opening")
+                || q.contains("openings")
+                || q.contains("vacancy")
+                || q.contains("vacancies")
+                || q.contains("hiring")
+                || q.contains("position")
+                || q.contains("positions")
+                || q.contains("developer")
+                || q.contains("software engineer")
+                || q.contains("backend")
+                || q.contains("frontend")
+                || q.contains("full stack")
+                || q.contains("role")
+                || q.contains("roles");
     }
 }

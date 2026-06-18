@@ -7,10 +7,12 @@ import com.Sharan.job_search_agent.tools.UserProfileTool;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.service.AiServices;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+@Slf4j
 @Configuration
 public class AgentConfig {
 
@@ -26,6 +28,9 @@ public class AgentConfig {
             JobRagTool jobRagTool,
             UserProfileTool userProfileTool,
             SkillExtractorTool skillExtractorTool) {
+
+        log.info("Initializing JobSearchAgent with tools: JSearchTool, JobRagTool, UserProfileTool, SkillExtractorTool");
+        log.info("Chat model: {}", chatLanguageModel.getClass().getSimpleName());
 
         return AiServices.builder(JobSearchAgent.class)
 
