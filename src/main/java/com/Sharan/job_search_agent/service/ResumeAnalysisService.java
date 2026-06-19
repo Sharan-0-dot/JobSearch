@@ -6,6 +6,9 @@ import com.Sharan.job_search_agent.model.UserProfile;
 import com.Sharan.job_search_agent.repository.JobListingRepository;
 import com.Sharan.job_search_agent.repository.ResumeAnalysisRepository;
 import com.Sharan.job_search_agent.repository.UserProfileRepository;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +41,6 @@ public class ResumeAnalysisService {
         JobListing job = jobListingRepository.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found: " + jobId));
 
-        // Step 1 — Deterministic: compute match score + find missing skills
         Set<String> userSkills   = mergeUserSkills(user);
         Set<String> jobSkills    = normalizeArray(job.getSkills());
         Set<String> missingSkills = computeMissingSkills(userSkills, jobSkills);
@@ -46,12 +48,10 @@ public class ResumeAnalysisService {
 
         log.debug("Match score: {} | Missing skills: {}", matchScore, missingSkills);
 
-        // Step 2 — LLM: generate personalized coaching feedback
         String[] atsFeedback          = generateAtsFeedback(user, job, missingSkills);
         String[] suggestedImprovements = generateSuggestedImprovements(missingSkills);
         String resumeFeedback          = generateResumeFeedback(user, job, missingSkills);
 
-        // Step 3 — Persist analysis for feedback loop
         ResumeAnalysis analysis = ResumeAnalysis.builder()
                 .userId(userId)
                 .jobListing(job)
@@ -109,7 +109,7 @@ public class ResumeAnalysisService {
                     String.join(", ", missingSkills)
             );
 
-            String response = chatLanguageModel.generate(prompt);
+            String response = generateFromLLM(prompt);
             return parseNumberedList(response);
 
         } catch (Exception e) {
@@ -133,7 +133,7 @@ public class ResumeAnalysisService {
                     String.join(", ", missingSkills)
             );
 
-            String response = chatLanguageModel.generate(prompt);
+            String response = generateFromLLM(prompt);
             return parseNumberedList(response);
 
         } catch (Exception e) {
@@ -162,7 +162,7 @@ public class ResumeAnalysisService {
                     String.join(", ", missingSkills)
             );
 
-            return chatLanguageModel.generate(prompt).trim();
+            return generateFromLLM(prompt).trim();
 
         } catch (Exception e) {
             log.warn("Resume feedback generation failed: {}", e.getMessage());
@@ -197,8 +197,31 @@ public class ResumeAnalysisService {
         return Arrays.stream(response.split("\n"))
                 .map(String::trim)
                 .filter(line -> !line.isBlank())
-                .map(line -> line.replaceAll("^[0-9]+[.)\\-]\\s*", "")) // remove "1. " or "1) "
+                .map(line -> line.replaceAll("^[0-9]+[.)\\-]\\s*", ""))
                 .filter(line -> !line.isBlank())
                 .toArray(String[]::new);
+    }
+
+    private String generateFromLLM(String prompt) {
+        try {
+            if (prompt == null || prompt.isBlank()) {
+                return "";
+            }
+
+            List<ChatMessage> messages = new ArrayList<>();
+            messages.add(new UserMessage(prompt));
+            
+            AiMessage response = chatLanguageModel.chat(messages).aiMessage();
+            
+            if (response == null) {
+                return "";
+            }
+
+            return response.text();
+
+        } catch (Exception e) {
+            log.warn("LLM generation failed: {}", e.getMessage());
+            return "";
+        }
     }
 }

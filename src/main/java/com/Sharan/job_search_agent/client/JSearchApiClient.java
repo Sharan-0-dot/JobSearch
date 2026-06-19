@@ -41,7 +41,6 @@ public class JSearchApiClient {
                 query, location, jobType);
 
         try {
-            // Build the full query string — JSearch combines query + location
             String fullQuery = location != null && !location.isBlank()
                     ? query + " in " + location
                     : query;

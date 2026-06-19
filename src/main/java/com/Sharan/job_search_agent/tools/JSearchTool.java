@@ -98,7 +98,7 @@ public class JSearchTool {
         StringBuilder sb = new StringBuilder();
         sb.append("Found ").append(jobs.size()).append(" jobs:\n\n");
 
-        for (int i = 0; i < Math.min(jobs.size(), 10); i++) {
+        for (int i = 0; i < Math.min(jobs.size(), 20); i++) {
             JobListing job = jobs.get(i);
             sb.append(i + 1).append(". ")
                     .append(job.getTitle()).append(" at ").append(job.getCompany())

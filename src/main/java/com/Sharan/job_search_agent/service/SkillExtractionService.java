@@ -1,5 +1,8 @@
 package com.Sharan.job_search_agent.service;
 
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -98,7 +101,7 @@ public class SkillExtractionService {
                     Text:
                     """ + truncated;
 
-            String response = chatLanguageModel.generate(prompt);
+            String response = generateFromLLM(prompt);
 
             return parseSkillsFromCsv(response);
 
@@ -118,5 +121,28 @@ public class SkillExtractionService {
                 .filter(s -> s.length() > 1)         // skip single-char noise
                 .filter(s -> s.length() < 50)        // skip sentences that slipped through
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private String generateFromLLM(String prompt) {
+        try {
+            if (prompt == null || prompt.isBlank()) {
+                return "";
+            }
+
+            List<ChatMessage> messages = new ArrayList<>();
+            messages.add(new UserMessage(prompt));
+            
+            AiMessage response = chatLanguageModel.chat(messages).aiMessage();
+            
+            if (response == null) {
+                return "";
+            }
+
+            return response.text();
+
+        } catch (Exception e) {
+            log.warn("LLM generation failed: {}", e.getMessage());
+            return "";
+        }
     }
 }

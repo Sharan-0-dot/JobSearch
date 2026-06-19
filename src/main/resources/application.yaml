@@ -24,11 +24,6 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
-logging:
-  level:
-    com.Sharan.job_search_agent: DEBUG
-    dev.langchain4j: DEBUG
-
 langchain4j:
   ollama:
     chat-model:
