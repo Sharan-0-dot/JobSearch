@@ -1,5 +1,6 @@
 package com.Sharan.job_search_agent.service;
 
+import com.Sharan.job_search_agent.dto.ExecutionTraceDto;
 import com.Sharan.job_search_agent.model.ExecutionTrace;
 import com.Sharan.job_search_agent.repository.ExecutionTraceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,7 +63,6 @@ public class ExecutionTraceService {
 
         } catch (Exception e) {
             log.error("Failed to save execution trace: {}", e.getMessage());
-            // Don't throw — tracing failure must never break the main response
             return null;
         }
     }
@@ -80,5 +80,29 @@ public class ExecutionTraceService {
                         userId,
                         pageable
                 );
+    }
+
+    public ExecutionTraceDto toDto(ExecutionTrace t) {
+        return new ExecutionTraceDto(
+                t.getId(),
+                t.getUserId(),
+                t.getQuery(),
+                parseOrNull(t.getPlanningPhase(), ExecutionTraceDto.PlanningPhase.class),
+                t.getToolsUsed(),
+                parseOrNull(t.getObservations(), ExecutionTraceDto.Observations.class),
+                t.getFinalResponse(),
+                t.getExecutionTimeMs(),
+                t.getCreatedAt()
+        );
+    }
+
+    private <T> T parseOrNull(String json, Class<T> type) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, type);
+        } catch (Exception e) {
+            log.warn("Failed to parse trace JSON field: {}", e.getMessage());
+            return null;
+        }
     }
 }

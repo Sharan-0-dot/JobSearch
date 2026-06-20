@@ -1,5 +1,8 @@
 package com.Sharan.job_search_agent.controller;
 
+import com.Sharan.job_search_agent.dto.ErrorResponse;
+import com.Sharan.job_search_agent.dto.ResumeAnalysisDto;
+import com.Sharan.job_search_agent.dto.ResumeUploadResponse;
 import com.Sharan.job_search_agent.model.ResumeAnalysis;
 import com.Sharan.job_search_agent.model.ResumeDocument;
 import com.Sharan.job_search_agent.service.ResumeAnalysisService;
@@ -30,7 +33,7 @@ public class ResumeController {
 
         if (file.isEmpty()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "File is empty"));
+                    .body(ErrorResponse.of("Bad request", "File is empty"));
         }
 
         String filename = file.getOriginalFilename();
@@ -38,7 +41,7 @@ public class ResumeController {
             String lower = filename.toLowerCase();
             if (!lower.endsWith(".pdf") && !lower.endsWith(".docx") && !lower.endsWith(".doc")) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("error", "Only PDF and DOCX files are supported"));
+                        .body(ErrorResponse.of("Bad request", "Only PDF and DOCX files are supported"));
             }
         }
 
@@ -46,14 +49,17 @@ public class ResumeController {
 
         ResumeDocument doc = resumeService.uploadAndProcess(userId, file);
 
-        return ResponseEntity.ok(Map.of(
-                "message", "Resume uploaded and processed successfully",
-                "documentId", doc.getId(),
-                "filename", doc.getOriginalFilename(),
-                "extractedSkills", doc.getExtractedSkills(),
-                "skillCount", doc.getExtractedSkills() != null
-                        ? doc.getExtractedSkills().length : 0
-        ));
+        ResumeUploadResponse response = new ResumeUploadResponse(
+                "Resume uploaded and processed successfully",
+                doc.getId(),
+                doc.getOriginalFilename(),
+                doc.getExtractedSkills(),
+                doc.getExtractedSkills() != null
+                        ? doc.getExtractedSkills().length
+                        : 0
+        );
+
+        return ResponseEntity.ok(response);
     }
 
 
@@ -65,20 +71,7 @@ public class ResumeController {
         log.info("Resume analysis request — userId: {} | jobId: {}", userId, jobId);
 
         ResumeAnalysis analysis = resumeAnalysisService.analyzeResumeForJob(userId, jobId);
-
-        return ResponseEntity.ok(Map.of(
-                "userId", analysis.getUserId(),
-                "jobId", jobId,
-                "matchScore", analysis.getMatchScore(),
-                "missingSkills", analysis.getMissingSkills() != null
-                        ? analysis.getMissingSkills() : new String[0],
-                "atsFeedback", analysis.getAtsFeedback() != null
-                        ? analysis.getAtsFeedback() : new String[0],
-                "suggestedImprovements", analysis.getSuggestedImprovements() != null
-                        ? analysis.getSuggestedImprovements() : new String[0],
-                "resumeFeedback", analysis.getResumeFeedback() != null
-                        ? analysis.getResumeFeedback() : ""
-        ));
+        return ResponseEntity.ok(ResumeAnalysisDto.from(analysis, jobId));
     }
 
 
@@ -88,19 +81,8 @@ public class ResumeController {
             @RequestParam("userId") String userId) {
 
         return resumeAnalysisService.getStoredAnalysis(userId, jobId)
-                .map(analysis -> ResponseEntity.ok(Map.of(
-                        "userId", analysis.getUserId(),
-                        "jobId", jobId,
-                        "matchScore", analysis.getMatchScore(),
-                        "missingSkills", analysis.getMissingSkills() != null
-                                ? analysis.getMissingSkills() : new String[0],
-                        "atsFeedback", analysis.getAtsFeedback() != null
-                                ? analysis.getAtsFeedback() : new String[0],
-                        "suggestedImprovements", analysis.getSuggestedImprovements() != null
-                                ? analysis.getSuggestedImprovements() : new String[0],
-                        "resumeFeedback", analysis.getResumeFeedback() != null
-                                ? analysis.getResumeFeedback() : ""
-                )))
+                .map(a -> ResumeAnalysisDto.from(a, jobId))
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 }

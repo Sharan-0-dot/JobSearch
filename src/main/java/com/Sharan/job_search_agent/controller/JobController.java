@@ -1,5 +1,6 @@
 package com.Sharan.job_search_agent.controller;
 
+import com.Sharan.job_search_agent.dto.JobListingDto;
 import com.Sharan.job_search_agent.model.JobListing;
 import com.Sharan.job_search_agent.repository.JobListingRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +11,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -22,54 +22,51 @@ public class JobController {
     private final JobListingRepository jobListingRepository;
 
     @GetMapping
-    public ResponseEntity<Page<JobListing>> getAllJobs(
+    public ResponseEntity<?> getAllJobs(
             @PageableDefault(size = 20) Pageable pageable) {
 
         Page<JobListing> jobs = jobListingRepository.findAllByOrderByCreatedAtDesc(pageable);
-        return ResponseEntity.ok(jobs);
+        return ResponseEntity.ok(jobs.map(JobListingDto::from));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getJobById(@PathVariable UUID id) {
         return jobListingRepository.findById(id)
+                .map(JobListingDto::from)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<JobListing>> searchJobs(
+    public ResponseEntity<?> searchJobs(
             @RequestParam String keyword) {
 
         if (keyword == null || keyword.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        List<JobListing> results = jobListingRepository.searchByKeyword(keyword);
-        return ResponseEntity.ok(results);
+
+        return ResponseEntity.ok(jobListingRepository.searchByKeyword(keyword)
+                .stream().map(JobListingDto::from).toList());
     }
 
     @GetMapping("/location")
-    public ResponseEntity<List<JobListing>> getJobsByLocation(
+    public ResponseEntity<?> getJobsByLocation(
             @RequestParam String location) {
-
-        List<JobListing> results =
-                jobListingRepository.findByLocationContainingIgnoreCase(location);
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(jobListingRepository.findByLocationContainingIgnoreCase(location)
+                .stream().map(JobListingDto::from).toList());
     }
 
     @GetMapping("/company")
-    public ResponseEntity<List<JobListing>> getJobsByCompany(
+    public ResponseEntity<?> getJobsByCompany(
             @RequestParam String name) {
-
-        List<JobListing> results = jobListingRepository.findByCompanyIgnoreCase(name);
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(jobListingRepository.findByCompanyIgnoreCase(name)
+                .stream().map(JobListingDto::from).toList());
     }
 
     @GetMapping("/type")
-    public ResponseEntity<List<JobListing>> getJobsByType(
+    public ResponseEntity<?> getJobsByType(
             @RequestParam String employmentType) {
-
-        List<JobListing> results =
-                jobListingRepository.findByEmploymentTypeIgnoreCase(employmentType);
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(jobListingRepository.findByEmploymentTypeIgnoreCase(employmentType)
+                .stream().map(JobListingDto::from).toList());
     }
 }

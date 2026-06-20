@@ -1,5 +1,7 @@
 package com.Sharan.job_search_agent.controller;
 
+import com.Sharan.job_search_agent.dto.ErrorResponse;
+import com.Sharan.job_search_agent.dto.UserProfileDto;
 import com.Sharan.job_search_agent.model.UserProfile;
 import com.Sharan.job_search_agent.service.UserProfileService;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +24,7 @@ public class ProfileController {
 
         if (profile.getUserId() == null || profile.getUserId().isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "userId is required"));
+                    .body(ErrorResponse.of("Bad request", "userId is required"));
         }
 
         boolean existedBefore = userProfileService.profileExists(profile.getUserId());
@@ -31,7 +33,7 @@ public class ProfileController {
 
         return ResponseEntity.ok(Map.of(
                 "message", existedBefore ? "Profile updated" : "Profile created",
-                "profile", saved
+                "profile", UserProfileDto.from(saved)
         ));
     }
 
@@ -39,8 +41,8 @@ public class ProfileController {
     public ResponseEntity<?> getProfile(@PathVariable String userId) {
 
         return userProfileService.getProfile(userId)
+                .map(UserProfileDto::from)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound()
-                        .build());
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

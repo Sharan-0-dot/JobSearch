@@ -20,7 +20,8 @@ public class TraceController {
     public ResponseEntity<?> getTrace(@PathVariable UUID traceId) {
 
         return executionTraceService.getTrace(traceId)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .map(executionTraceService::toDto)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }

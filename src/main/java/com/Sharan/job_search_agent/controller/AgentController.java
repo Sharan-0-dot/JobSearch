@@ -2,6 +2,9 @@ package com.Sharan.job_search_agent.controller;
 
 import com.Sharan.job_search_agent.agent.JobSearchAgent;
 import com.Sharan.job_search_agent.agent.PostgresChatMemoryStore;
+import com.Sharan.job_search_agent.dto.AgentQueryRequest;
+import com.Sharan.job_search_agent.dto.AgentQueryResponse;
+import com.Sharan.job_search_agent.dto.ErrorResponse;
 import com.Sharan.job_search_agent.observability.TokenUsageTracker;
 import com.Sharan.job_search_agent.service.ExecutionTraceService;
 import com.Sharan.job_search_agent.validation.InputValidationService;
@@ -45,19 +48,19 @@ public class AgentController {
     }
 
     @PostMapping("/query")
-    public ResponseEntity<?> query(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> query(@RequestBody AgentQueryRequest request) {
 
-        String userId = request.get("userId");
-        String userMessage = request.get("query");
+        String userId = request.userId();
+        String userMessage = request.query();
 
         if (userId == null || userId.isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "userId is required"));
+                    .body(errorBody("Bad Request", "userId is required"));
         }
 
         if (userMessage == null || userMessage.isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "query is required"));
+                    .body(errorBody("Bad Request", "query is required"));
         }
 
         InputValidationService.ValidationResult validation =
@@ -66,9 +69,10 @@ public class AgentController {
         if (!validation.isValid()) {
             log.warn("Rejected query from user {}. Reason: {}", userId, validation.rejectionReason());
 
-            return ResponseEntity.badRequest().body(Map.of(
-                            "error", "Invalid input",
-                            "reason", validation.rejectionReason()
+            return ResponseEntity.badRequest()
+                    .body(errorBody(
+                            "Invalid input",
+                            validation.rejectionReason()
                     ));
         }
 
@@ -109,14 +113,7 @@ public class AgentController {
                         userMessage
                 );
 
-                return ResponseEntity.ok(Map.of(
-                        "userId", userId,
-                        "query", userMessage,
-                        "response",
-                        "I couldn't verify any real job listings for this request. Please provide a role, location, or job type and try again.",
-                        "toolsUsed", toolsUsed,
-                        "warning", "No job search tool was executed."
-                ));
+                return ResponseEntity.ok(AgentQueryResponse.guardrailTriggered(userId, userMessage, toolsUsed));
             }
 
             long executionTime =
@@ -137,13 +134,15 @@ public class AgentController {
                     executionTime
             );
 
-            return ResponseEntity.ok(Map.of(
-                    "userId", userId,
-                    "query", userMessage,
-                    "response", response,
-                    "toolsUsed", toolsUsed,
-                    "executionTimeMs", executionTime
-            ));
+            return ResponseEntity.ok(
+                    AgentQueryResponse.success(
+                            userId,
+                            userMessage,
+                            response,
+                            toolsUsed,
+                            executionTime
+                    )
+            );
 
         } catch (Exception e) {
 
@@ -157,10 +156,9 @@ public class AgentController {
             );
 
             return ResponseEntity.internalServerError()
-                    .body(Map.of(
-                            "error", "Agent processing failed",
-                            "message", e.getMessage(),
-                            "executionTimeMs", executionTime
+                    .body(errorBody(
+                            "Agent processing failed",
+                            e.getMessage()
                     ));
         }
     }
@@ -182,6 +180,7 @@ public class AgentController {
 
         return ResponseEntity.ok(
                 executionTraceService.getTracesByUser(userId, pageable)
+                        .map(executionTraceService::toDto)
         );
     }
 
@@ -207,5 +206,9 @@ public class AgentController {
                 || q.contains("full stack")
                 || q.contains("role")
                 || q.contains("roles");
+    }
+
+    private ErrorResponse errorBody(String error, String message) {
+        return ErrorResponse.of(error, message);
     }
 }

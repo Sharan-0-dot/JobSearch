@@ -1,5 +1,7 @@
 package com.Sharan.job_search_agent.controller;
 
+import com.Sharan.job_search_agent.dto.ErrorResponse;
+import com.Sharan.job_search_agent.dto.JobFeedbackDto;
 import com.Sharan.job_search_agent.model.JobFeedback;
 import com.Sharan.job_search_agent.model.JobListing;
 import com.Sharan.job_search_agent.repository.JobFeedbackRepository;
@@ -30,22 +32,22 @@ public class FeedbackController {
         String jobIdStr = (String) request.get("jobId");
 
         if (userId == null || userId.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "userId is required"));
+            return ResponseEntity.badRequest().body(errorBody("Bad request", "userId is required"));
         }
         if (jobIdStr == null || jobIdStr.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "jobId is required"));
+            return ResponseEntity.badRequest().body(errorBody("Bad request", "jobId is required"));
         }
 
         UUID jobId;
         try {
             jobId = UUID.fromString(jobIdStr);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "jobId is not a valid UUID"));
+            return ResponseEntity.badRequest().body(errorBody("Bad request", "jobId is not a valid UUID"));
         }
 
         Optional<JobListing> jobOpt = jobListingRepository.findById(jobId);
         if (jobOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Job not found: " + jobId));
+            return ResponseEntity.badRequest().body(errorBody("Not found", "Job not found: " + jobId));
         }
 
         Optional<JobFeedback> existingOpt =
@@ -77,23 +79,30 @@ public class FeedbackController {
 
         return ResponseEntity.ok(Map.of(
                 "message", "Feedback recorded",
-                "feedback", saved
+                "feedback", JobFeedbackDto.from(saved)
         ));
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<List<JobFeedback>> getFeedbackByUser(@PathVariable String userId) {
+    public ResponseEntity<?> getFeedbackByUser(@PathVariable String userId) {
         return ResponseEntity.ok(
-                jobFeedbackRepository.findByUserIdOrderByCreatedAtDesc(userId));
+                jobFeedbackRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                        .stream().map(JobFeedbackDto::from).toList());
     }
 
     @GetMapping("/{userId}/liked")
-    public ResponseEntity<List<JobFeedback>> getLikedJobs(@PathVariable String userId) {
-        return ResponseEntity.ok(jobFeedbackRepository.findLikedJobsByUserId(userId));
+    public ResponseEntity<?> getLikedJobs(@PathVariable String userId) {
+        return ResponseEntity.ok(jobFeedbackRepository.findLikedJobsByUserId(userId)
+                .stream().map(JobFeedbackDto::from).toList());
     }
 
     @GetMapping("/{userId}/applied")
-    public ResponseEntity<List<JobFeedback>> getAppliedJobs(@PathVariable String userId) {
-        return ResponseEntity.ok(jobFeedbackRepository.findAppliedJobsByUserId(userId));
+    public ResponseEntity<?> getAppliedJobs(@PathVariable String userId) {
+        return ResponseEntity.ok(jobFeedbackRepository.findAppliedJobsByUserId(userId)
+                .stream().map(JobFeedbackDto::from).toList());
+    }
+
+    private ErrorResponse errorBody(String error, String message) {
+        return ErrorResponse.of(error, message);
     }
 }
