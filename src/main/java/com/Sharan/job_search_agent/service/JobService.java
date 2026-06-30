@@ -1,10 +1,12 @@
 package com.Sharan.job_search_agent.service;
 
+import com.Sharan.job_search_agent.event.JobSavedEvent;
 import com.Sharan.job_search_agent.model.JobListing;
 import com.Sharan.job_search_agent.repository.JobListingRepository;
 import com.Sharan.job_search_agent.validation.URLValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ public class JobService {
     private final JobListingRepository jobListingRepository;
     private final EmbeddingService embeddingService;
     private final URLValidator urlValidator;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public JobListing saveIfNotDuplicate(JobListing job) {
@@ -36,7 +39,7 @@ public class JobService {
         job.setFetchedAt(LocalDateTime.now());
         JobListing saved = jobListingRepository.save(job);
 
-        embeddingService.embedAndSaveJob(saved);
+        eventPublisher.publishEvent(new JobSavedEvent(saved));
 
         log.info("Saved new job: {} at {}", saved.getTitle(), saved.getCompany());
         return saved;
