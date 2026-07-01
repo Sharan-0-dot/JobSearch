@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+
+  springboot:
+    image: sharansc/job_search_agent:latest
+    container_name: job_search_agent_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - job_search_agent_net
+    expose:
+      - "8080"
+
+  nginx:
+    image: sharansc/jobsearch-frontend:latest
+    container_name: job_search_agent_frontend
+    restart: unless-stopped
+    depends_on:
+      - springboot
+    ports:
+      - "80:80"
+    networks:
+      - job_search_agent_net
+
+networks:
+  job_search_agent_net:
+    driver: bridge
